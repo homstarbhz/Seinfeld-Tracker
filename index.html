@@ -1,0 +1,581 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Seinfeld Episode Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b5cff"/>
+<style>
+:root{--max-width:1100px;--accent:#0b5cff;--muted:#666;--card-bg:#fff;--bg:#f4f6fb;--radius:12px;}
+*{box-sizing:border-box}body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:20px; background:var(--bg); color:#111; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:var(--max-width);margin:0 auto}header{display:flex;gap:16px;align-items:center;margin-bottom:18px}h1{margin:0;font-size:20px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}select,input[type="search"]{padding:8px 10px;border-radius:8px;border:1px solid #ddd;background:white;min-width:120px}.main{display:grid;grid-template-columns:1fr 360px;gap:18px}@media (max-width:980px){.main{grid-template-columns:1fr}}.card{background:var(--card-bg);border-radius:var(--radius);padding:12px;box-shadow:0 6px 18px rgba(20,30,40,0.06)}table{width:100%;border-collapse:collapse;font-size:15px}thead th{text-align:left;font-size:13px;color:var(--muted);padding:6px 8px;border-bottom:1px solid #eee}tbody tr{transition:background .12s}tbody tr:hover{background:#fbfcff}td{padding:8px}.small{font-size:13px;color:var(--muted)}.btn{padding:6px 10px;border-radius:8px;border:0;background:var(--accent);color:white;cursor:pointer}.rating{display:flex;gap:6px;align-items:center}.rating input[type="range"]{width:110px}.note{width:100%;min-height:80px;padding:8px;border-radius:8px;border:1px solid #e6e9ef}.stats-list{display:flex;flex-direction:column;gap:8px}.progress{height:10px;background:#eee;border-radius:999px;overflow:hidden}.progress>span{display:block;height:100%;background:var(--accent);width:0%}.top-list{display:flex;flex-direction:column;gap:6px}.episode-row{display:flex;gap:10px;align-items:center;justify-content:space-between}.ep-meta{display:flex;gap:8px;align-items:center}.chip{padding:6px 8px;border-radius:999px;background:#f0f4ff;color:var(--accent);font-weight:600}.muted{color:var(--muted)}.small-btn{background:#f5f7ff;border:1px solid #e6edff;padding:6px 8px;border-radius:8px;cursor:pointer}.note-title{font-size:13px;margin:6px 0 4px}.empty{color:var(--muted);font-size:14px;padding:12px;text-align:center}.top-ep{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px;border-radius:8px}.filters-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.search-area{flex:1;min-width:160px}.table-scroll{max-height:68vh;overflow:auto;padding-right:8px}footer{margin-top:16px;font-size:13px;color:var(--muted)}@media (max-width:520px){header{flex-direction:column;align-items:flex-start;gap:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Seinfeld Episode Tracker</h1>
+      <div class="small muted">Track watched episodes, rate them 1–10, leave notes, and view stats.</div>
+    </div>
+    <div style="margin-left:auto" class="small muted">Saved to browser storage · No accounts</div>
+  </header>
+
+  <div class="controls card">
+    <div class="filters-row">
+      <select id="seasonFilter">
+        <option value="all">All Seasons</option>
+        <option value="1">Season 1</option>
+        <option value="2">Season 2</option>
+        <option value="3">Season 3</option>
+        <option value="4">Season 4</option>
+        <option value="5">Season 5</option>
+        <option value="6">Season 6</option>
+        <option value="7">Season 7</option>
+        <option value="8">Season 8</option>
+        <option value="9">Season 9</option>
+      </select>
+
+      <select id="watchedFilter">
+        <option value="all">All episodes</option>
+        <option value="watched">Watched</option>
+        <option value="unwatched">Unwatched</option>
+        <option value="unrated">Unrated</option>
+      </select>
+
+      <select id="sortBy">
+        <option value="season-ep">Sort: Season & Episode</option>
+        <option value="rating-desc">Sort: Rating desc</option>
+        <option value="rating-asc">Sort: Rating asc</option>
+        <option value="title">Sort: Title</option>
+      </select>
+
+      <div class="search-area">
+        <input id="search" type="search" placeholder="Search titles or notes..." />
+      </div>
+
+      <button id="resetBtn" class="small-btn">Reset all data</button>
+      <button id="exportBtn" class="small-btn">Export JSON</button>
+      <button id="importBtn" class="small-btn">Import JSON</button>
+      <input id="fileInput" type="file" accept="application/json" style="display:none" />
+    </div>
+  </div>
+
+  <div class="main">
+    <section class="card">
+      <div class="table-scroll">
+        <table aria-label="Episode list">
+          <thead>
+            <tr>
+              <th style="width:12%">S-E</th>
+              <th>Title</th>
+              <th style="width:14%">Watched</th>
+              <th style="width:22%">Rating / Notes</th>
+            </tr>
+          </thead>
+          <tbody id="episodesTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="card">
+      <div>
+        <h3 style="margin:0 0 8px">Your Stats</h3>
+        <div class="stats-list">
+          <div>
+            <div class="small muted">Total watched</div>
+            <div id="watchedCount">0 / 180</div>
+            <div class="progress" style="margin-top:8px"><span id="watchedProgress"></span></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="small muted">Average rating (all rated)</div>
+            <div id="avgRating">—</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="small muted">Average by season</div>
+            <div id="seasonAverages" class="small muted"></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="small muted">Top rated episodes</div>
+            <div id="topList" class="top-list"></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <button id="clearRatings" class="small-btn">Clear ratings</button>
+            <button id="clearWatched" class="small-btn">Clear watched</button>
+          </div>
+
+          <hr style="margin:14px 0" />
+          <div>
+            <div class="small muted">Episode detail</div>
+            <div id="detailArea" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <footer class="muted">
+    Built for personal use. Data is stored only in your browser. To move devices, use Export / Import JSON.
+  </footer>
+</div>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js').then(()=>{ console.log('Service worker registered'); }).catch(err=>console.warn('SW registration failed', err));
+}
+</script>
+
+<script>
+// Small, optimized version of the full app logic with episodes baked in.
+// For readability and to ensure the PWA bundle remains self-contained,
+// this implementation follows the same structure as the prior single-file app.
+const EPISODES = [
+  {season:1, ep:1, title:"Good News, Bad News"},
+  {season:1, ep:2, title:"The Stakeout"},
+  {season:1, ep:3, title:"The Robbery"},
+  {season:1, ep:4, title:"Male Unbonding"},
+  {season:1, ep:5, title:"The Stock Tip"},
+  {season:2, ep:1, title:"The Ex-Girlfriend"},
+  {season:2, ep:2, title:"The Pony Remark"},
+  {season:2, ep:3, title:"The Jacket"},
+  {season:2, ep:4, title:"The Phone Message"},
+  {season:2, ep:5, title:"The Apartment"},
+  {season:2, ep:6, title:"The Statue"},
+  {season:2, ep:7, title:"The Revenge"},
+  {season:2, ep:8, title:"The Heart Attack"},
+  {season:2, ep:9, title:"The Deal"},
+  {season:2, ep:10, title:"The Baby Shower"},
+  {season:2, ep:11, title:"The Chinese Restaurant"},
+  {season:2, ep:12, title:"The Busboy"},
+  {season:3, ep:1, title:"The Note"},
+  {season:3, ep:2, title:"The Truth"},
+  {season:3, ep:3, title:"The Pen"},
+  {season:3, ep:4, title:"The Dog"},
+  {season:3, ep:5, title:"The Library"},
+  {season:3, ep:6, title:"The Parking Garage"},
+  {season:3, ep:7, title:"The Cafe"},
+  {season:3, ep:8, title:"The Tape"},
+  {season:3, ep:9, title:"The Nose Job"},
+  {season:3, ep:10, title:"The Stranded"},
+  {season:3, ep:11, title:"The Alternate Side"},
+  {season:3, ep:12, title:"The Red Dot"},
+  {season:3, ep:13, title:"The Subway"},
+  {season:3, ep:14, title:"The Pez Dispenser"},
+  {season:3, ep:15, title:"The Suicide"},
+  {season:3, ep:16, title:"The Fix-Up"},
+  {season:3, ep:17, title:"The Boyfriend (1)"},
+  {season:3, ep:18, title:"The Boyfriend (2)"},
+  {season:3, ep:19, title:"The Limo"},
+  {season:3, ep:20, title:"The Good Samaritan"},
+  {season:3, ep:21, title:"The Letter"},
+  {season:3, ep:22, title:"The Parking Space"},
+  {season:3, ep:23, title:"The Keys"},
+  {season:4, ep:1, title:"The Trip (1)"},
+  {season:4, ep:2, title:"The Trip (2)"},
+  {season:4, ep:3, title:"The Pitch"},
+  {season:4, ep:4, title:"The Ticket"},
+  {season:4, ep:5, title:"The Wallet (1)"},
+  {season:4, ep:6, title:"The Watch (2)"},
+  {season:4, ep:7, title:"The Bubble Boy"},
+  {season:4, ep:8, title:"The Cheever Letters"},
+  {season:4, ep:9, title:"The Opera"},
+  {season:4, ep:10, title:"The Virgin"},
+  {season:4, ep:11, title:"The Contest"},
+  {season:4, ep:12, title:"The Airport"},
+  {season:4, ep:13, title:"The Pick"},
+  {season:4, ep:14, title:"The Movie"},
+  {season:4, ep:15, title:"The Visa"},
+  {season:4, ep:16, title:"The Shoes"},
+  {season:4, ep:17, title:"The Outing"},
+  {season:4, ep:18, title:"The Old Man"},
+  {season:4, ep:19, title:"The Implant"},
+  {season:4, ep:20, title:"The Junior Mint"},
+  {season:4, ep:21, title:"The Smelly Car"},
+  {season:4, ep:22, title:"The Handicap Spot"},
+  {season:4, ep:23, title:"The Pilot (1)"},
+  {season:4, ep:24, title:"The Pilot (2)"},
+  {season:5, ep:1, title:"The Mango"},
+  {season:5, ep:2, title:"The Puffy Shirt"},
+  {season:5, ep:3, title:"The Glasses"},
+  {season:5, ep:4, title:"The Sniffing Accountant"},
+  {season:5, ep:5, title:"The Bris"},
+  {season:5, ep:6, title:"The Lip Reader"},
+  {season:5, ep:7, title:"The Non-Fat Yogurt"},
+  {season:5, ep:8, title:"The Barber"},
+  {season:5, ep:9, title:"The Masseuse"},
+  {season:5, ep:10, title:"The Cigar Store Indian"},
+  {season:5, ep:11, title:"The Conversion"},
+  {season:5, ep:12, title:"The Stall"},
+  {season:5, ep:13, title:"The Dinner Party"},
+  {season:5, ep:14, title:"The Marine Biologist"},
+  {season:5, ep:15, title:"The Pie"},
+  {season:5, ep:16, title:"The Stand-In"},
+  {season:5, ep:17, title:"The Wife"},
+  {season:5, ep:18, title:"The Raincoats (1)"},
+  {season:5, ep:19, title:"The Raincoats (2)"},
+  {season:5, ep:20, title:"The Fire"},
+  {season:5, ep:21, title:"The Hamptons"},
+  {season:5, ep:22, title:"The Opposite"},
+  {season:6, ep:1, title:"The Chaperone"},
+  {season:6, ep:2, title:"The Big Salad"},
+  {season:6, ep:3, title:"The Pledge Drive"},
+  {season:6, ep:4, title:"The Chinese Woman"},
+  {season:6, ep:5, title:"The Couch"},
+  {season:6, ep:6, title:"The Gymnast"},
+  {season:6, ep:7, title:"The Soup"},
+  {season:6, ep:8, title:"The Mom & Pop Store"},
+  {season:6, ep:9, title:"The Secretary"},
+  {season:6, ep:10, title:"The Race"},
+  {season:6, ep:11, title:"The Switch"},
+  {season:6, ep:12, title:"The Label Maker"},
+  {season:6, ep:13, title:"The Scofflaw"},
+  {season:6, ep:14, title:"Highlights of a Hundred (1)"},
+  {season:6, ep:15, title:"Highlights of a Hundred (2)"},
+  {season:6, ep:16, title:"The Beard"},
+  {season:6, ep:17, title:"The Kiss Hello"},
+  {season:6, ep:18, title:"The Doorman"},
+  {season:6, ep:19, title:"The Jimmy"},
+  {season:6, ep:20, title:"The Doodle"},
+  {season:6, ep:21, title:"The Fusilli Jerry"},
+  {season:6, ep:22, title:"The Diplomat's Club"},
+  {season:6, ep:23, title:"The Face Painter"},
+  {season:6, ep:24, title:"The Understudy"},
+  {season:7, ep:1, title:"The Engagement"},
+  {season:7, ep:2, title:"The Postponement"},
+  {season:7, ep:3, title:"The Maestro"},
+  {season:7, ep:4, title:"The Wink"},
+  {season:7, ep:5, title:"The Hot Tub"},
+  {season:7, ep:6, title:"The Soup Nazi"},
+  {season:7, ep:7, title:"The Secret Code"},
+  {season:7, ep:8, title:"The Pool Guy"},
+  {season:7, ep:9, title:"The Sponge"},
+  {season:7, ep:10, title:"The Gum"},
+  {season:7, ep:11, title:"The Rye"},
+  {season:7, ep:12, title:"The Caddy"},
+  {season:7, ep:13, title:"The Seven"},
+  {season:7, ep:14, title:"The Cadillac (1)"},
+  {season:7, ep:15, title:"The Cadillac (2)"},
+  {season:7, ep:16, title:"The Shower Head"},
+  {season:7, ep:17, title:"The Doll"},
+  {season:7, ep:18, title:"The Friars Club"},
+  {season:7, ep:19, title:"The Wig Master"},
+  {season:7, ep:20, title:"The Calzone"},
+  {season:7, ep:21, title:"The Bottle Deposit (1)"},
+  {season:7, ep:22, title:"The Bottle Deposit (2)"},
+  {season:7, ep:23, title:"The Wait Out"},
+  {season:7, ep:24, title:"The Invitations"},
+  {season:8, ep:1, title:"The Foundation"},
+  {season:8, ep:2, title:"The Soul Mate"},
+  {season:8, ep:3, title:"The Bizarro Jerry"},
+  {season:8, ep:4, title:"The Little Kicks"},
+  {season:8, ep:5, title:"The Package"},
+  {season:8, ep:6, title:"The Fatigues"},
+  {season:8, ep:7, title:"The Checks"},
+  {season:8, ep:8, title:"The Chicken Roaster"},
+  {season:8, ep:9, title:"The Abstinence"},
+  {season:8, ep:10, title:"The Andrea Doria"},
+  {season:8, ep:11, title:"The Little Jerry"},
+  {season:8, ep:12, title:"The Money"},
+  {season:8, ep:13, title:"The Comeback"},
+  {season:8, ep:14, title:"The Van Buren Boys"},
+  {season:8, ep:15, title:"The Susie"},
+  {season:8, ep:16, title:"The Pothole"},
+  {season:8, ep:17, title:"The English Patient"},
+  {season:8, ep:18, title:"The Nap"},
+  {season:8, ep:19, title:"The Yada Yada"},
+  {season:8, ep:20, title:"The Millennium"},
+  {season:8, ep:21, title:"The Muffin Tops"},
+  {season:8, ep:22, title:"The Summer of George"},
+  {season:9, ep:1, title:"The Butter Shave"},
+  {season:9, ep:2, title:"The Voice"},
+  {season:9, ep:3, title:"The Serenity Now"},
+  {season:9, ep:4, title:"The Blood"},
+  {season:9, ep:5, title:"The Junk Mail"},
+  {season:9, ep:6, title:"The Merv Griffin Show"},
+  {season:9, ep:7, title:"The Slicer"},
+  {season:9, ep:8, title:"The Betrayal"},
+  {season:9, ep:9, title:"The Apology"},
+  {season:9, ep:10, title:"The Strike"},
+  {season:9, ep:11, title:"The Dealership"},
+  {season:9, ep:12, title:"The Reverse Peephole"},
+  {season:9, ep:13, title:"The Cartoon"},
+  {season:9, ep:14, title:"The Strongbox"},
+  {season:9, ep:15, title:"The Wizard"},
+  {season:9, ep:16, title:"The Burning"},
+  {season:9, ep:17, title:"The Bookstore"},
+  {season:9, ep:18, title:"The Frogger"},
+  {season:9, ep:19, title:"The Maid"},
+  {season:9, ep:20, title:"The Puerto Rican Day"},
+  {season:9, ep:21, title:"The Clip Show (1)"},
+  {season:9, ep:22, title:"The Clip Show (2)"},
+  {season:9, ep:23, title:"The Finale (1)"},
+  {season:9, ep:24, title:"The Finale (2)"}
+];
+
+// Simple storage and UI code (same behavior as before).
+const STORAGE_KEY = "seinfeldTracker_v1";
+let userData = {};
+function loadFromStorage(){ try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw){ userData = JSON.parse(raw) || {}; } else userData = {}; }catch(e){ userData = {}; } }
+function saveToStorage(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(userData)); }catch(e){} }
+
+const tbody = document.getElementById("episodesTbody");
+const seasonFilter = document.getElementById("seasonFilter");
+const watchedFilter = document.getElementById("watchedFilter");
+const searchInput = document.getElementById("search");
+const sortBy = document.getElementById("sortBy");
+const watchedCountEl = document.getElementById("watchedCount");
+const watchedProgressEl = document.getElementById("watchedProgress");
+const avgRatingEl = document.getElementById("avgRating");
+const seasonAveragesEl = document.getElementById("seasonAverages");
+const topListEl = document.getElementById("topList");
+const detailArea = document.getElementById("detailArea");
+
+document.getElementById("resetBtn").addEventListener("click", ()=>{ if(!confirm("This will clear ALL your tracked info (watched, ratings, notes). Continue?")) return; userData = {}; saveToStorage(); render(); });
+document.getElementById("clearRatings").addEventListener("click", ()=>{ if(!confirm("Clear all ratings?")) return; for(const k in userData){ if(userData[k].rating != null) userData[k].rating = null; } saveToStorage(); render(); });
+document.getElementById("clearWatched").addEventListener("click", ()=>{ if(!confirm("Mark all episodes as unwatched?")) return; for(const k in userData){ userData[k].watched = false; } saveToStorage(); render(); });
+
+document.getElementById("exportBtn").addEventListener("click", ()=>{ const payload = { episodes: EPISODES, userData, exportedAt: (new Date()).toISOString() }; const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "seinfeld-tracker-export.json"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+document.getElementById("importBtn").addEventListener("click", ()=>{ document.getElementById("fileInput").click(); });
+document.getElementById("fileInput").addEventListener("change", (e)=>{ const f = e.target.files && e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = (ev)=>{ try{ const payload = JSON.parse(ev.target.result); if(payload && payload.userData){ if(confirm("Import will overwrite your current tracked data (still keeps built-in episode list). Continue?")){ userData = payload.userData; saveToStorage(); render(); } } else { alert("That file doesn't look like a valid tracker export."); } }catch(err){ alert("Could not read file: " + err); } }; reader.readAsText(f); });
+
+seasonFilter.addEventListener("change", render);
+watchedFilter.addEventListener("change", render);
+searchInput.addEventListener("input", debounce(render, 180));
+sortBy.addEventListener("change", render);
+
+function keyFor(e){ return `${e.season}-${e.ep}`; }
+function getDataFor(e){ const k = keyFor(e); if(!userData[k]) userData[k] = { watched:false, rating:null, notes:"", updatedAt: null }; return userData[k]; }
+function formatSE(e){ return `S${e.season}E${String(e.ep).padStart(2,"0")}`; }
+
+function render(){
+  loadFromStorage();
+  tbody.innerHTML = "";
+  const sf = seasonFilter.value;
+  const wf = watchedFilter.value;
+  const q = (searchInput.value||"").trim().toLowerCase();
+  let list = EPISODES.slice();
+  if(sf !== "all") list = list.filter(it => String(it.season) === sf);
+  if(wf === "watched") list = list.filter(it => getDataFor(it).watched);
+  if(wf === "unwatched") list = list.filter(it => !getDataFor(it).watched);
+  if(wf === "unrated") list = list.filter(it => getDataFor(it).rating == null);
+  if(q){ list = list.filter(it => { const d = getDataFor(it); return it.title.toLowerCase().includes(q) || (d.notes||"").toLowerCase().includes(q); }); }
+
+  const sortVal = sortBy.value;
+  if(sortVal === "season-ep"){ list.sort((a,b)=> a.season - b.season || a.ep - b.ep); }
+  else if(sortVal === "rating-desc"){ list.sort((a,b)=>{ const ra = getDataFor(a).rating || -1; const rb = getDataFor(b).rating || -1; return rb - ra || a.season - b.season || a.ep - b.ep; }); }
+  else if(sortVal === "rating-asc"){ list.sort((a,b)=>{ const ra = getDataFor(a).rating || 999; const rb = getDataFor(b).rating || 999; return ra - rb || a.season - b.season || a.ep - b.ep; }); }
+  else if(sortVal === "title"){ list.sort((a,b)=> a.title.localeCompare(b.title)); }
+
+  for(const ep of list){
+    const d = getDataFor(ep);
+    const tr = document.createElement("tr");
+
+    const seTd = document.createElement("td");
+    seTd.innerHTML = `<div class="small muted">${formatSE(ep)}</div><div class="small muted">S${ep.season} • Ep ${ep.ep}</div>`;
+    tr.appendChild(seTd);
+
+    const titleTd = document.createElement("td");
+    titleTd.innerHTML = `<div style="font-weight:600">${escapeHtml(ep.title)}</div><div class="small muted">Season ${ep.season} · Episode ${ep.ep}</div>`;
+    tr.appendChild(titleTd);
+
+    const watchedTd = document.createElement("td");
+    const watchedCheckbox = document.createElement("input");
+    watchedCheckbox.type = "checkbox";
+    watchedCheckbox.checked = !!d.watched;
+    watchedCheckbox.addEventListener("change", ()=>{ d.watched = watchedCheckbox.checked; d.updatedAt = (new Date()).toISOString(); saveToStorage(); render(); });
+    watchedTd.appendChild(watchedCheckbox);
+    const watchedLabel = document.createElement("div");
+    watchedLabel.className = "small muted";
+    watchedLabel.style.marginTop = "6px";
+    watchedLabel.textContent = d.watched ? "Watched" : "Not watched";
+    watchedTd.appendChild(watchedLabel);
+    tr.appendChild(watchedTd);
+
+    const ratingTd = document.createElement("td");
+    ratingTd.style.minWidth = "220px";
+    const ratingDiv = document.createElement("div");
+    ratingDiv.className = "rating";
+
+    const ratingValue = document.createElement("div");
+    ratingValue.style.minWidth = "36px";
+    ratingValue.textContent = d.rating == null ? "—" : d.rating + "/10";
+    ratingDiv.appendChild(ratingValue);
+
+    const ratingBtns = document.createElement("div");
+    ratingBtns.style.display = "flex";
+    ratingBtns.style.gap = "4px";
+    ratingBtns.style.flexWrap = "wrap";
+
+    for(let r=1;r<=10;r++){
+      const b = document.createElement("button");
+      b.textContent = r;
+      b.title = "Rate " + r;
+      b.style.padding = "4px 6px";
+      b.style.borderRadius = "6px";
+      b.style.border = "1px solid #eee";
+      b.style.background = d.rating === r ? "var(--accent)" : "white";
+      b.style.color = d.rating === r ? "white" : "#111";
+      b.style.cursor = "pointer";
+      b.addEventListener("click", ()=>{ d.rating = r; d.updatedAt = (new Date()).toISOString(); saveToStorage(); render(); });
+      ratingBtns.appendChild(b);
+    }
+    ratingDiv.appendChild(ratingBtns);
+
+    const notesBtn = document.createElement("button");
+    notesBtn.className = "small-btn";
+    notesBtn.textContent = d.notes ? "Edit note" : "Add note";
+    notesBtn.style.marginLeft = "6px";
+    notesBtn.addEventListener("click", ()=>{ showDetail(ep); });
+    ratingDiv.appendChild(notesBtn);
+
+    const clr = document.createElement("button");
+    clr.className = "small-btn";
+    clr.textContent = "Clear";
+    clr.title = "Clear rating";
+    clr.style.marginLeft = "6px";
+    clr.addEventListener("click", ()=>{ d.rating = null; d.updatedAt = (new Date()).toISOString(); saveToStorage(); render(); });
+    ratingDiv.appendChild(clr);
+
+    ratingTd.appendChild(ratingDiv);
+
+    const noteSnippet = document.createElement("div");
+    noteSnippet.className = "small muted";
+    noteSnippet.style.marginTop = "6px";
+    noteSnippet.textContent = d.notes ? (d.notes.length > 80 ? d.notes.slice(0,80) + "…" : d.notes) : "No note";
+    ratingTd.appendChild(noteSnippet);
+
+    tr.appendChild(ratingTd);
+
+    tr.addEventListener("click", (ev)=>{ if(ev.target.tagName.toLowerCase()==="input" || ev.target.tagName.toLowerCase()==="button") return; showDetail(ep); });
+
+    tbody.appendChild(tr);
+  }
+
+  updateStats();
+}
+
+function showDetail(ep){
+  const d = getDataFor(ep);
+  detailArea.innerHTML = "";
+  const box = document.createElement("div");
+  box.innerHTML = `<div style="font-weight:700">${escapeHtml(ep.title)}</div><div class="small muted" style="margin-bottom:8px">Season ${ep.season} · Episode ${ep.ep}</div>`;
+  const watchedRow = document.createElement("div");
+  watchedRow.style.marginBottom = "8px";
+  const chk = document.createElement("input");
+  chk.type = "checkbox";
+  chk.checked = !!d.watched;
+  chk.addEventListener("change", ()=>{ d.watched = chk.checked; d.updatedAt = (new Date()).toISOString(); saveToStorage(); render(); });
+  watchedRow.appendChild(chk);
+  const wLabel = document.createElement("span");
+  wLabel.className = "small muted";
+  wLabel.style.marginLeft = "8px";
+  wLabel.textContent = "Mark as watched";
+  watchedRow.appendChild(wLabel);
+  box.appendChild(watchedRow);
+
+  const ratingRow = document.createElement("div");
+  ratingRow.style.marginBottom = "8px";
+  ratingRow.innerHTML = `<div class="small muted">Rating (1–10)</div>`;
+  const range = document.createElement("input");
+  range.type = "range";
+  range.min = 1; range.max = 10; range.step = 1;
+  range.value = d.rating || 6;
+  range.style.width = "100%";
+  const rangeValue = document.createElement("div");
+  rangeValue.style.marginTop = "6px";
+  rangeValue.textContent = d.rating == null ? "—" : d.rating + "/10";
+  range.addEventListener("input", ()=>{ rangeValue.textContent = range.value + "/10"; });
+  range.addEventListener("change", ()=>{ d.rating = Number(range.value); d.updatedAt = (new Date()).toISOString(); saveToStorage(); render(); });
+  ratingRow.appendChild(range);
+  ratingRow.appendChild(rangeValue);
+  box.appendChild(ratingRow);
+
+  const noteLabel = document.createElement("div");
+  noteLabel.className = "note-title";
+  noteLabel.textContent = "Your notes";
+  box.appendChild(noteLabel);
+
+  const noteArea = document.createElement("textarea");
+  noteArea.className = "note";
+  noteArea.value = d.notes || "";
+  noteArea.addEventListener("change", ()=>{ d.notes = noteArea.value; d.updatedAt = (new Date()).toISOString(); saveToStorage(); render(); });
+  box.appendChild(noteArea);
+
+  const lastUpdated = document.createElement("div");
+  lastUpdated.className = "small muted";
+  lastUpdated.style.marginTop = "8px";
+  lastUpdated.textContent = d.updatedAt ? ("Last updated: " + new Date(d.updatedAt).toLocaleString()) : "";
+  box.appendChild(lastUpdated);
+
+  detailArea.appendChild(box);
+  box.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+function updateStats(){
+  const total = EPISODES.length;
+  let watched = 0;
+  let ratingSum = 0;
+  let ratingCount = 0;
+  const seasonSums = {};
+  const seasonCounts = {};
+  for(const ep of EPISODES){
+    const d = getDataFor(ep);
+    if(d.watched) watched++;
+    if(d.rating != null){
+      ratingSum += d.rating;
+      ratingCount++;
+      seasonSums[ep.season] = (seasonSums[ep.season] || 0) + d.rating;
+      seasonCounts[ep.season] = (seasonCounts[ep.season] || 0) + 1;
+    }
+  }
+  watchedCountEl.textContent = `${watched} / ${total}`;
+  const pct = Math.round((watched/total) * 100);
+  watchedProgressEl.style.width = pct + "%";
+
+  avgRatingEl.textContent = ratingCount ? ( (ratingSum / ratingCount).toFixed(2) + " / 10 ("+ratingCount+" rated)" ) : "—";
+
+  const seasonLines = [];
+  for(let s=1; s<=9; s++){
+    if(seasonCounts[s]){ seasonLines.push(`S${s}: ${(seasonSums[s]/seasonCounts[s]).toFixed(2)} (${seasonCounts[s]} rated)`); }
+    else { seasonLines.push(`S${s}: —`); }
+  }
+  seasonAveragesEl.textContent = seasonLines.join(" · ");
+
+  const ratedEpisodes = EPISODES.filter(ep => getDataFor(ep).rating != null)
+    .map(ep => { const d = getDataFor(ep); return {ep, rating: d.rating, updatedAt: d.updatedAt || ""}; });
+  ratedEpisodes.sort((a,b)=>{ if(b.rating !== a.rating) return b.rating - a.rating; if(b.updatedAt !== a.updatedAt) return (b.updatedAt > a.updatedAt) ? -1 : 1; return a.ep.season - b.ep.season || a.ep.ep - b.ep.ep; });
+  topListEl.innerHTML = "";
+  if(ratedEpisodes.length === 0){ topListEl.innerHTML = '<div class="empty">No rated episodes yet. Rate an episode to see your top list.</div>'; }
+  else {
+    const top = ratedEpisodes.slice(0, Math.min(10, ratedEpisodes.length));
+    for(const item of top){
+      const div = document.createElement("div");
+      div.className = "top-ep";
+      div.innerHTML = `<div><strong>${escapeHtml(item.ep.title)}</strong><div class="small muted">S${item.ep.season} · E${item.ep.ep}</div></div>
+        <div style="text-align:right"><div style="font-weight:700">${item.rating}/10</div></div>`;
+      topListEl.appendChild(div);
+    }
+  }
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), ms); } }
+
+loadFromStorage();
+render();
+
+document.addEventListener("keydown", (e)=>{ if(e.key.toLowerCase() === "n" && document.activeElement.tagName.toLowerCase() !== "input" && document.activeElement.tagName.toLowerCase() !== "textarea"){ goToNextUnwatched(); } });
+function goToNextUnwatched(){ const sf = seasonFilter.value; let list = EPISODES.slice(); if(sf !== "all") list = list.filter(it=> String(it.season) === sf); const next = list.find(it => !getDataFor(it).watched); if(next){ showDetail(next); } else { alert("No unwatched episodes in the current filter."); } }
+
+const footer = document.querySelector("footer");
+footer.textContent += " · Tip: press 'n' to jump to the next unwatched episode (when not typing).";
+</script>
+</body>
+</html>
